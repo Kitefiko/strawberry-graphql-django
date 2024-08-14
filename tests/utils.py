@@ -13,6 +13,7 @@ from django.test.client import (
 )
 from django.test.utils import CaptureQueriesContext
 from strawberry.test.client import Response
+from strawberry.type import get_object_definition
 from strawberry.utils.inspect import in_async_context
 
 from strawberry_django.optimizer import DjangoOptimizerExtension
@@ -21,6 +22,10 @@ from strawberry_django.test.client import TestClient
 _client: contextvars.ContextVar["GraphQLTestClient"] = contextvars.ContextVar(
     "_client_ctx",
 )
+
+
+def get_sorted_fields(obj: Any):
+    return sorted(get_object_definition(obj, strict=True).fields, key=lambda x: x.name)
 
 
 def generate_query(query=None, mutation=None, enable_optimizer=False):

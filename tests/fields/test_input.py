@@ -1,9 +1,10 @@
 import strawberry
 from django.db import models
 from strawberry import auto
-from strawberry.type import StrawberryOptional, get_object_definition
+from strawberry.type import StrawberryOptional
 
 import strawberry_django
+from tests.utils import get_sorted_fields
 
 
 class InputFieldsModel(models.Model):
@@ -22,9 +23,7 @@ def test_input_type():
         blank: auto
         null: auto
 
-    assert [
-        (f.name, f.type) for f in get_object_definition(InputType, strict=True).fields
-    ] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(InputType)] == [
         ("id", StrawberryOptional(strawberry.ID)),
         ("mandatory", int),
         ("default", StrawberryOptional(int)),
@@ -42,9 +41,7 @@ def test_input_type_for_partial_update():
         blank: auto
         null: auto
 
-    assert [
-        (f.name, f.type) for f in get_object_definition(InputType, strict=True).fields
-    ] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(InputType)] == [
         ("id", StrawberryOptional(strawberry.ID)),
         ("mandatory", StrawberryOptional(int)),
         ("default", StrawberryOptional(int)),
@@ -60,9 +57,7 @@ def test_input_type_basic():
     class UserInput:
         name: auto
 
-    assert [
-        (f.name, f.type) for f in get_object_definition(UserInput, strict=True).fields
-    ] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(UserInput)] == [
         ("name", str),
     ]
 
@@ -74,10 +69,7 @@ def test_partial_input_type():
     class UserPartialInput:
         name: auto
 
-    assert [
-        (f.name, f.type)
-        for f in get_object_definition(UserPartialInput, strict=True).fields
-    ] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(UserPartialInput)] == [
         ("name", StrawberryOptional(str)),
     ]
 
@@ -93,10 +85,7 @@ def test_partial_input_type_inheritance():
     class UserPartialInput(UserInput):
         pass
 
-    assert [
-        (f.name, f.type)
-        for f in get_object_definition(UserPartialInput, strict=True).fields
-    ] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(UserPartialInput)] == [
         ("name", StrawberryOptional(str)),
     ]
 
@@ -113,9 +102,7 @@ def test_input_type_inheritance_from_type():
     class UserInput(User):
         pass
 
-    assert [
-        (f.name, f.type) for f in get_object_definition(UserInput, strict=True).fields
-    ] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(UserInput)] == [
         ("id", StrawberryOptional(strawberry.ID)),
         ("name", str),
     ]

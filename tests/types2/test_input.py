@@ -1,8 +1,9 @@
 import strawberry
 from strawberry import auto
-from strawberry.type import StrawberryOptional, get_object_definition
+from strawberry.type import StrawberryOptional
 
 import strawberry_django
+from tests.utils import get_sorted_fields
 
 from .test_type import TypeModel
 
@@ -14,8 +15,7 @@ def test_input():
         boolean: auto
         string: auto
 
-    object_definition = get_object_definition(Input, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Input)] == [
         ("id", StrawberryOptional(strawberry.ID)),
         ("boolean", bool),
         ("string", str),
@@ -32,8 +32,7 @@ def test_inherit(testtype):
     class Input(Base):
         string: auto
 
-    object_definition = get_object_definition(Input, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Input)] == [
         ("id", StrawberryOptional(strawberry.ID)),
         ("boolean", bool),
         ("string", str),
@@ -50,8 +49,7 @@ def test_relationship(testtype):
         many_to_many: auto
         related_many_to_many: auto
 
-    object_definition = get_object_definition(Input, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Input)] == [
         ("foreign_key", StrawberryOptional(strawberry_django.OneToManyInput)),
         (
             "related_foreign_key",
@@ -88,8 +86,7 @@ def test_relationship_inherit(testtype):
     class Input(Base):
         pass
 
-    object_definition = get_object_definition(Input, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Input)] == [
         ("foreign_key", StrawberryOptional(strawberry_django.OneToManyInput)),
         (
             "related_foreign_key",

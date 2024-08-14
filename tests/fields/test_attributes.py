@@ -5,11 +5,11 @@ import strawberry
 from django.db import models
 from django.test import override_settings
 from strawberry import BasePermission, auto, relay
-from strawberry.type import get_object_definition
 
 import strawberry_django
 from strawberry_django.fields.field import StrawberryDjangoField
 from strawberry_django.settings import strawberry_django_settings
+from tests.utils import get_sorted_fields
 
 _global_id_desc = (
     "The `ID` scalar type represents a unique identifier, "
@@ -33,7 +33,7 @@ def test_default_django_name():
 
     assert [
         (f.name, cast(StrawberryDjangoField, f).django_name)
-        for f in get_object_definition(Type, strict=True).fields
+        for f in get_sorted_fields(Type)
     ] == [
         ("field", "field"),
         ("field2", "field"),
@@ -53,12 +53,7 @@ def test_field_permission_classes():
         def custom_resolved_field(self) -> str:
             return self.field
 
-    assert sorted(
-        [
-            (f.name, f.permission_classes)
-            for f in get_object_definition(Type, strict=True).fields
-        ],
-    ) == sorted(
+    assert [(f.name, f.permission_classes) for f in get_sorted_fields(Type)] == sorted(
         [
             ("field", [TestPermission]),
             ("custom_resolved_field", [TestPermission]),

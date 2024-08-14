@@ -24,7 +24,7 @@ from strawberry.type import (
     StrawberryType,
     WithStrawberryObjectDefinition,
 )
-from strawberry.utils.typing import is_classvar
+from strawberry.utils.typing import is_classvar, type_has_annotation
 from typing_extensions import Protocol
 
 if TYPE_CHECKING:
@@ -93,7 +93,12 @@ def is_auto(obj: Any) -> bool:
     if isinstance(obj, str):
         return obj in {"auto", "strawberry.auto"}
 
-    return isinstance(obj, StrawberryAuto)
+    # TODO: isinstance(obj, StrawberryAuto) unnessesary?
+    return (
+        type_has_annotation(obj, StrawberryAuto)
+        or obj is Any  # TODO: When already resolved?
+        or isinstance(obj, StrawberryAuto)
+    )
 
 
 def get_annotations(cls) -> dict[str, StrawberryAnnotation]:

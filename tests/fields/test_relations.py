@@ -6,11 +6,11 @@ from strawberry import auto
 from strawberry.type import (
     StrawberryList,
     StrawberryOptional,
-    get_object_definition,
 )
 
 import strawberry_django
 from strawberry_django.fields.field import StrawberryDjangoField
+from tests.utils import get_sorted_fields
 
 
 class ParentModel(models.Model):
@@ -58,7 +58,7 @@ class Child:
 def test_relation():
     assert [
         (f.name, f.type, cast(StrawberryDjangoField, f).is_list)
-        for f in get_object_definition(Parent, strict=True).fields
+        for f in get_sorted_fields(Parent)
     ] == [
         ("id", strawberry.ID, False),
         ("name", str, False),
@@ -70,7 +70,7 @@ def test_relation():
 def test_reversed_relation():
     assert [
         (f.name, f.type, cast(StrawberryDjangoField, f).is_list)
-        for f in get_object_definition(Child, strict=True).fields
+        for f in get_sorted_fields(Child)
     ] == [
         ("id", strawberry.ID, False),
         ("name", str, False),

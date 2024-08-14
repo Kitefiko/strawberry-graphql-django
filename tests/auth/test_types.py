@@ -1,9 +1,10 @@
 import strawberry
 from django.contrib.auth.models import Group, User
-from strawberry.type import StrawberryList, get_object_definition
+from strawberry.type import StrawberryList
 
 import strawberry_django
 from strawberry_django import DjangoModelType
+from tests.utils import get_sorted_fields
 
 
 def test_user_type():
@@ -13,8 +14,7 @@ def test_user_type():
         email: strawberry.auto
         groups: strawberry.auto
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("username", str),
         ("email", str),
         ("groups", StrawberryList(DjangoModelType)),
@@ -27,8 +27,7 @@ def test_group_type():
         name: strawberry.auto
         users: strawberry.auto = strawberry_django.field(field_name="user_set")
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("name", str),
         ("users", StrawberryList(DjangoModelType)),
     ]

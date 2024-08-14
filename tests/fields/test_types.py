@@ -25,6 +25,8 @@ import strawberry_django
 from strawberry_django.fields.field import StrawberryDjangoField
 from strawberry_django.type import _process_type  # noqa: PLC2701
 
+from tests.utils import get_sorted_fields
+
 if django.VERSION >= (5, 0):
     from django.db.models import GeneratedField  # type: ignore
 else:
@@ -141,7 +143,70 @@ def test_field_types():
         ("url", str),
         ("uuid", uuid.UUID),
         ("json", JSON),
+        ("null_boolean", StrawberryOptional(bool)),
     ]
+
+    if django.VERSION >= (5, 0):
+        Type.__annotations__["generated_decimal"] = auto
+        expected_types.append(("generated_decimal", decimal.Decimal))
+
+        Type.__annotations__["generated_nullable_decimal"] = auto
+        expected_types.append(("generated_nullable_decimal", Optional[decimal.Decimal]))
+
+    type_to_test = _process_type(Type, model=FieldTypesModel)
+    object_definition = get_object_definition(type_to_test, strict=True)
+    # TODO: assert [(f.name, f.type) for f in get_sorted_fields(Type)] == expected_types
+    assert [(f.name, f.type) for f in object_definition.fields] 
+
+
+def test_field_types_for_array_fields():
+    class ModelWithArrays(models.Model):
+        str_array = ArrayField(models.CharField(max_length=50))
+        int_array = ArrayField(models.IntegerField())
+
+    @strawberry_django.type(ModelWithArrays)
+    class Type:
+        str_array: auto
+        int_array: auto
+
+    type_to_test = _process_type(Type, model=ModelWithArrays)
+    object_definition = get_object_definition(type_to_test, strict=True)
+
+    str_array_field = object_definition.get_field("str_array")
+    assert str_array_field
+    assert isinstance(str_array_field.type, StrawberryList)
+    assert str_array_field.type.of_type is str
+
+    int_array_field = object_definition.get_field("int_array")
+    assert int_array_field
+    assert isinstance(int_array_field.type, StrawberryList)
+    assert int_array_field.type.of_type is int
+
+
+def test_field_types_for_matrix_fields():
+    class ModelWithMatrixes(models.Model):
+        str_matrix = ArrayField(ArrayField(models.CharField(max_length=50)))
+        int_matrix = ArrayField(ArrayField(models.IntegerField()))
+
+    @strawberry_django.type(ModelWithMatrixes)
+    class Type:
+        str_matrix: auto
+        int_matrix: auto
+
+    type_to_test = _process_type(Type, model=ModelWithMatrixes)
+    object_definition = get_object_definition(type_to_test, strict=True)
+
+    str_matrix_field = object_definition.get_field("str_matrix")
+    assert str_matrix_field
+    assert isinstance(str_matrix_field.type, StrawberryList)
+    assert isinstance(str_matrix_field.type.of_type, StrawberryList)
+    assert str_matrix_field.type.of_type.of_type is str
+
+    int_matrix_field = object_definition.get_field("int_matrix")
+    assert int_matrix_field
+    assert isinstance(int_matrix_field.type, StrawberryList)
+    assert isinstance(int_matrix_field.type.of_type, StrawberryList)
+    assert int_matrix_field.type.of_type.of_type is int
 
     if django.VERSION >= (5, 0):
         Type.__annotations__["generated_decimal"] = auto
@@ -212,8 +277,7 @@ def test_subset_of_fields():
         integer: auto
         text: auto
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("id", strawberry.ID),
         ("integer", int),
         ("text", str),
@@ -231,8 +295,7 @@ def test_type_extension():
         def my_field() -> int:
             return 0
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("char", str),
         ("text", bytes),
         ("my_field", int),
@@ -256,8 +319,7 @@ def test_override_field_type():
     class Type:
         char: EnumType
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         (
             "char",
             EnumDefinition(
@@ -275,8 +337,7 @@ def test_override_field_default_value():
     class Type:
         char: str = "my value"
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("char", str),
     ]
 
@@ -293,10 +354,9 @@ def test_related_fields():
         related_one_to_one: auto
         related_many_to_many: auto
 
-    object_definition = get_object_definition(Type, strict=True)
     assert [
         (f.name, f.type, cast(StrawberryDjangoField, f).is_list)
-        for f in object_definition.fields
+        for f in get_sorted_fields(Type)
     ] == [
         ("foreign_key", strawberry_django.DjangoModelType, False),
         ("one_to_one", strawberry_django.DjangoModelType, False),
@@ -388,10 +448,9 @@ def test_geos_fields():
         multi_line_string: auto
         multi_polygon: auto
 
-    object_definition = get_object_definition(GeoFieldType, strict=True)
     assert [
         (f.name, cast(StrawberryOptional, f.type).of_type)
-        for f in object_definition.fields
+        for f in get_sorted_fields(GeoFieldType)
     ] == [
         ("point", types.Point),
         ("line_string", types.LineString),
@@ -414,8 +473,7 @@ def test_inherit_type():
     class Type(Base):  # type: ignore
         many_to_many: List["Type"]
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("char", str),
         ("one_to_one", Type),
         ("many_to_many", StrawberryList(Type)),
@@ -436,8 +494,7 @@ def test_inherit_input():
         id: auto
         my_data: str
 
-    object_definition = get_object_definition(Input, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Input)] == [
         ("char", str),
         ("one_to_one", StrawberryOptional(strawberry_django.OneToOneInput)),
         (
@@ -465,10 +522,9 @@ def test_inherit_partial_input():
     class PartialInput(Input):
         pass
 
-    object_definition = get_object_definition(PartialInput, strict=True)
     assert [
         (f.name, f.type, cast(StrawberryDjangoField, f).is_optional)
-        for f in object_definition.fields
+        for f in get_sorted_fields(PartialInput)
     ] == [
         ("char", StrawberryOptional(str), True),
         (

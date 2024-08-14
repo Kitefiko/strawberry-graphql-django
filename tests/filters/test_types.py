@@ -3,12 +3,13 @@ from typing import Optional
 import pytest
 import strawberry
 from strawberry import auto
-from strawberry.type import StrawberryOptional, get_object_definition
+from strawberry.type import StrawberryOptional
 
 import strawberry_django
 from strawberry_django.filters import get_django_model_filter_input_type
 from strawberry_django.settings import strawberry_django_settings
 from tests import models
+from tests.utils import get_sorted_fields
 
 DjangoModelFilterInput = get_django_model_filter_input_type()
 
@@ -29,8 +30,7 @@ def test_filter():
         color: auto
         types: auto
 
-    object_definition = get_object_definition(Filter, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Filter)] == [
         ("id", StrawberryOptional(strawberry.ID)),
         ("name", StrawberryOptional(str)),
         ("color", StrawberryOptional(DjangoModelFilterInput)),
@@ -50,10 +50,9 @@ def test_lookups():
         color: auto
         types: auto
 
-    object_definition = get_object_definition(Filter, strict=True)
     assert [
         (f.name, f.type.of_type.__name__)  # type: ignore
-        for f in object_definition.fields
+        for f in get_sorted_fields(Filter)
     ] == [
         ("id", "FilterLookup"),
         ("name", "FilterLookup"),
@@ -78,8 +77,7 @@ def test_inherit(testtype):
     class Filter(Base):
         pass
 
-    object_definition = get_object_definition(Filter, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Filter)] == [
         ("id", StrawberryOptional(strawberry.ID)),
         ("name", StrawberryOptional(str)),
         ("color", StrawberryOptional(DjangoModelFilterInput)),
@@ -100,8 +98,7 @@ def test_relationship():
     class Filter:
         color: Optional[ColorFilter]
 
-    object_definition = get_object_definition(Filter, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Filter)] == [
         ("color", StrawberryOptional(ColorFilter)),
         ("AND", StrawberryOptional(Filter)),
         ("OR", StrawberryOptional(Filter)),
@@ -123,8 +120,7 @@ def test_relationship_with_inheritance():
     class Filter(Base):
         color: Optional[ColorFilter]
 
-    object_definition = get_object_definition(Filter, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Filter)] == [
         ("color", StrawberryOptional(ColorFilter)),
         ("AND", StrawberryOptional(Filter)),
         ("OR", StrawberryOptional(Filter)),

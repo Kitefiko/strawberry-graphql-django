@@ -8,7 +8,7 @@ from django.db.models import Case, Count, Q, QuerySet, Value, When
 from strawberry import auto
 from strawberry.exceptions import MissingArgumentsAnnotationsError
 from strawberry.relay import GlobalID
-from strawberry.type import WithStrawberryObjectDefinition, get_object_definition
+from strawberry.type import WithStrawberryObjectDefinition
 from strawberry.types import ExecutionResult
 
 import strawberry_django
@@ -337,7 +337,7 @@ def test_filter_type():
             f.type.of_type.__name__,  # type: ignore
             f.base_resolver.__class__ if f.base_resolver else None,
         )
-        for f in get_object_definition(FruitOrder, strict=True).fields
+        for f in utils.get_sorted_fields(FruitOrder)
         if f.name not in {"NOT", "AND", "OR", "DISTINCT"}
     ] == [
         ("id", StrawberryDjangoField, "BaseFilterLookup", None),

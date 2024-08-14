@@ -12,6 +12,7 @@ from strawberry.type import (
 
 import strawberry_django
 from strawberry_django.fields.field import StrawberryDjangoField
+from tests.utils import get_sorted_fields
 
 
 class TypeModel(models.Model):
@@ -42,8 +43,7 @@ def test_type():
         boolean: auto
         string: auto
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("id", strawberry.ID),
         ("boolean", bool),
         ("string", str),
@@ -60,8 +60,7 @@ def test_inherit(testtype):
     class Type(Base):
         string: auto
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("id", strawberry.ID),
         ("boolean", bool),
         ("string", str),
@@ -75,8 +74,7 @@ def test_default_value():
         string2: str = strawberry.field(default="data2")
         string3: str = strawberry_django.field(default="data3")
 
-    object_definition = get_object_definition(Type, strict=True)
-    assert [(f.name, f.type) for f in object_definition.fields] == [
+    assert [(f.name, f.type) for f in get_sorted_fields(Type)] == [
         ("string", str),
         ("string2", str),
         ("string3", str),

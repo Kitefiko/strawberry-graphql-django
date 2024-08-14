@@ -11,7 +11,6 @@ from strawberry.field import StrawberryField
 from strawberry.type import (
     StrawberryOptional,
     WithStrawberryObjectDefinition,
-    get_object_definition,
 )
 
 import strawberry_django
@@ -199,7 +198,7 @@ def test_order_type():
             f.type,
             f.base_resolver.__class__ if f.base_resolver else None,
         )
-        for f in get_object_definition(FruitOrder, strict=True).fields
+        for f in utils.get_sorted_fields(FruitOrder)
     ] == [
         ("color_id", StrawberryField, annotated_type, None),
         ("name", StrawberryField, annotated_type, None),

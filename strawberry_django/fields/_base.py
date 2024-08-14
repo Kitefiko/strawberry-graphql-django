@@ -23,6 +23,7 @@ from strawberry.utils.inspect import get_specialized_type_var_map
 from strawberry_django.resolvers import django_resolver
 from strawberry_django.utils.typing import (
     WithStrawberryDjangoObjectDefinition,
+    get_django_definition,
     has_django_definition,
     unwrap_type,
 )
@@ -33,10 +34,7 @@ if TYPE_CHECKING:
     from strawberry.types import Info
     from typing_extensions import Literal, Self
 
-    from strawberry_django.type_extension import (
-        DjangoObjectDefinition,
-        WithStrawberryDjangoObjectDefinition,
-    )
+    from strawberry_django.type import StrawberryDjangoDefinition
 
 _QS = TypeVar("_QS", bound="models.QuerySet")
 
@@ -48,20 +46,22 @@ else:
 
 class StrawberryDjangoFieldBase(StrawberryField):
     def __init__(
-        self, django_name: str | None = None, is_relation: bool = False, **kwargs: Any
+        self,
+        django_name: str | None = None,
+        graphql_name: str | None = None,
+        python_name: str | None = None,
+        **kwargs,
     ):
-        super().__init__(**kwargs)
+        self.is_relation = False
         self.django_name = django_name
-        self.is_relation = is_relation
-
-        self._django_definition: DjangoObjectDefinition | None = None
+        self.origin_django_type: StrawberryDjangoDefinition[Any, Any] | None = None
+        super().__init__(graphql_name=graphql_name, python_name=python_name, **kwargs)
 
     def __copy__(self) -> Self:
         new_field = super().__copy__()
         new_field.django_name = self.django_name
         new_field.is_relation = self.is_relation
-
-        new_field._django_definition = self._django_definition
+        new_field.origin_django_type = self.origin_django_type
         return new_field
 
     @property
@@ -166,21 +166,6 @@ class StrawberryDjangoFieldBase(StrawberryField):
 
         return resolver
 
-    @property
-    def django_definition(self) -> DjangoObjectDefinition | None:
-        from strawberry_django.type_extension import DjangoObjectDefinition
-
-        if self._django_definition:
-            return self._django_definition
-
-        if (def_ := get_object_definition(self.origin)) and isinstance(
-            def_, DjangoObjectDefinition
-        ):
-            self._django_definition = def_
-            return def_
-
-        return None
-
     def resolve_type(
         self,
         *,
@@ -189,23 +174,26 @@ class StrawberryDjangoFieldBase(StrawberryField):
         StrawberryType | type[WithStrawberryObjectDefinition] | Literal[UNRESOLVED]  # type: ignore
     ):
         resolved = super().resolve_type(type_definition=type_definition)
-        if resolved is UNRESOLVED or not (django_def := self.django_definition):
-            # print(self.name, self.origin)
-            # None origin -> Field has not yet been processed via type extension
+        if resolved is UNRESOLVED:
             return resolved
 
-        unwraped = unwrap_type(resolved)
-        # FIXME: Why does this come as Any sometimes when using future annotations?
+        resolved_django_type = get_django_definition(unwrap_type(resolved))
 
-        # TODO: ? If the resolved type is an input but the origin is not, or vice versa,
-        # resolve this again
-        if unwraped is Any or isinstance(unwraped, StrawberryAuto):
+        if self.origin_django_type and (
+            # FIXME: Why does this come as Any sometimes when using future annotations?
+            resolved is Any
+            or isinstance(resolved, StrawberryAuto)
+            # If the resolved type is an input but the origin is not, or vice versa,
+            # resolve this again
+            or (
+                resolved_django_type
+                and resolved_django_type.is_input != self.origin_django_type.is_input
+            )
+        ):
             from .types import get_model_field, is_optional, resolve_model_field_type
 
-            # print(self.python_name, resolved, self)
-
             model_field = get_model_field(
-                django_def.model,
+                self.origin_django_type.model,
                 self.django_name or self.python_name or self.name,
             )
             resolved_type = resolve_model_field_type(
@@ -217,9 +205,20 @@ class StrawberryDjangoFieldBase(StrawberryField):
                     )
                     else model_field
                 ),
-                django_def,
+                self.origin_django_type,
             )
-            if is_optional(model_field, django_def.is_input, django_def.is_partial):
+
+            is_generated_field = GeneratedField is not None and isinstance(
+                model_field, GeneratedField
+            )
+            field_to_check = (
+                model_field.output_field if is_generated_field else model_field  # type: ignore
+            )
+            if is_optional(
+                field_to_check,
+                self.origin_django_type.is_input,
+                self.origin_django_type.is_partial,
+            ):
                 resolved_type = Optional[resolved_type]
 
             self.type_annotation = StrawberryAnnotation(resolved_type)
